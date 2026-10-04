@@ -1,0 +1,9 @@
+build/
+.vs/
+*.exe
+*.dll
+*.obj
+*.lib
+*.pdb
+Debug/
+Release/
