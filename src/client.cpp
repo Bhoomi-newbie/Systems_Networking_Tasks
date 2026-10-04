@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cstring>
-
+#include <cstdint>
+#include <string>
 #include <winsock2.h>
 #include <ws2tcpip.h>
 
@@ -37,7 +38,7 @@ int main() {
     serverAddress.sin_port = htons(PORT);
 
     // Connect to the server running on localhost.
-    if (inet_pton(
+    if (inet_pton(  // converts ip to binary form
             AF_INET,
             "127.0.0.1",
             &serverAddress.sin_addr
@@ -58,7 +59,6 @@ int main() {
         ) == SOCKET_ERROR) {
 
         print_socket_error("Connection failed.");
-
         closesocket(clientSocket);
         cleanup_winsock();
         return 1;
@@ -67,43 +67,63 @@ int main() {
     std::cout << "Connected to server!\n";
 
     // Send a message to the server.
-    const char* message = "Hello from client!";
+    // const char* message = "Hello from client!";
 
-    send(
-        clientSocket,
-        message,
-        static_cast<int>(std::strlen(message)),
-        0
-    );
+    // send(
+    //     clientSocket,
+    //     message,
+    //     static_cast<int>(std::strlen(message)),
+    //     0
+    // );
 
-    // Receive the server's response.
-    char buffer[BUFFER_SIZE];
+    // // Receive the server's response.
+    // char buffer[BUFFER_SIZE];
 
-    int bytesReceived = recv(
-        clientSocket,
-        buffer,
-        BUFFER_SIZE - 1,
-        0
-    );
+    // int bytesReceived = recv(
+    //     clientSocket,
+    //     buffer,
+    //     BUFFER_SIZE - 1,
+    //     0
+    // );
 
-    if (bytesReceived > 0) {
+    // if (bytesReceived > 0) {
 
-        buffer[bytesReceived] = '\0';
+    //     buffer[bytesReceived] = '\0';
 
-        std::cout << "Server: "
-                  << buffer
-                  << '\n';
-    }
-    else if (bytesReceived == 0) {
-        std::cout << "Server closed the connection.\n";
-    }
-    else {
-        print_socket_error("Receive failed.");
-    }
+    //     std::cout << "Server: "
+    //               << buffer
+    //               << '\n';
+    // }
+    // else if (bytesReceived == 0) {
+    //     std::cout << "Server closed the connection.\n";
+    // }
+    // else {
+    //     print_socket_error("Receive failed.");
+    // }
 
+    // Send a framed message to the server.
+send_frame(
+    clientSocket,
+    1,
+    "Hello from client!"
+);
+
+// Receive a framed response from the server.
+uint8_t type;
+std::string message;
+
+if (recv_frame(clientSocket, type, message)) {
+
+    std::cout << "Received frame:\n";
+    std::cout << "Type: " << static_cast<int>(type) << '\n';
+    std::cout << "Length: " << message.size() << '\n';
+    std::cout << "Payload: " << message << '\n';
+}
+else {
+    print_socket_error("Failed to receive frame.");
+}
     // Close the connection.
     closesocket(clientSocket);
-
     // Clean up Winsock.
     cleanup_winsock();
 
