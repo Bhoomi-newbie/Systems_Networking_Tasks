@@ -6,7 +6,7 @@
 #include <ws2tcpip.h>  // TCP/IP functionality
 
 #include "socket_utils.h"
-
+#include "ecdh.h"
 #pragma comment(lib, "Ws2_32.lib")  //link winsock library
 
 constexpr int PORT = 8080;
@@ -81,6 +81,71 @@ int main() {
     }
 
     std::cout << "Client connected!\n";
+
+    //generate server side keypair
+    EVP_PKEY* keypair = generate_x25519_keypair();
+if (keypair == nullptr) {
+    std::cerr << "Failed to generate X25519 keypair\n";
+    closesocket(clientSocket);
+    return 1;
+}
+
+std::vector<uint8_t> public_key =
+    get_public_key(keypair);
+
+if (public_key.empty()) {
+    std::cerr << "Failed to get public key\n";
+    EVP_PKEY_free(keypair);
+    closesocket(clientSocket);
+    return 1;
+}
+
+// Receive client's public key.
+uint8_t peer_type;
+std::string peer_key_data;
+
+if (!recv_frame(clientSocket, peer_type, peer_key_data)) {
+    std::cerr << "Failed to receive peer public key\n";
+    EVP_PKEY_free(keypair);
+    closesocket(clientSocket);
+    return 1;
+}
+
+std::vector<uint8_t> peer_public_key(
+    peer_key_data.begin(),
+    peer_key_data.end()
+);
+
+// Send our public key.
+std::string public_key_data(
+    reinterpret_cast<const char*>(public_key.data()),
+    public_key.size()
+);
+
+if (!send_frame(clientSocket, 2, public_key_data)) {
+    std::cerr << "Failed to send public key\n";
+    EVP_PKEY_free(keypair);
+    closesocket(clientSocket);
+    return 1;
+}
+
+// Compute shared secret.
+std::vector<uint8_t> shared_secret =
+    compute_shared_secret(keypair, peer_public_key);
+
+if (shared_secret.empty()) {
+    std::cerr << "Failed to compute shared secret\n";
+    EVP_PKEY_free(keypair);
+    closesocket(clientSocket);
+    return 1;
+}
+
+std::cout << "ECDH key exchange successful!\n";
+std::cout << "Shared secret size: "
+          << shared_secret.size()
+          << " bytes\n";
+
+EVP_PKEY_free(keypair);
 
     // Receive a message from the client.
     // char buffer[BUFFER_SIZE];

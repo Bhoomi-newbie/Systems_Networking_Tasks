@@ -51,3 +51,77 @@ std::vector<uint8_t> get_public_key(EVP_PKEY* keypair) {
 
     return public_key;
 }
+
+std::vector<uint8_t> compute_shared_secret(
+    EVP_PKEY* keypair,
+    const std::vector<uint8_t>& peer_public_key
+) {
+    // Create an EVP_PKEY from the other side's raw public key.
+    EVP_PKEY* peer_key = EVP_PKEY_new_raw_public_key(
+        EVP_PKEY_X25519,
+        nullptr,
+        peer_public_key.data(),
+        peer_public_key.size()
+    );
+
+    if (peer_key == nullptr) {
+        return {};
+    }
+
+    // Create a context for the key derivation.
+    EVP_PKEY_CTX* context =
+        EVP_PKEY_CTX_new(keypair, nullptr);
+
+    if (context == nullptr) {
+        EVP_PKEY_free(peer_key);
+        return {};
+    }
+
+    // Initialize key derivation.
+    if (EVP_PKEY_derive_init(context) <= 0) {
+        EVP_PKEY_CTX_free(context);
+        EVP_PKEY_free(peer_key);
+        return {};
+    }
+
+    // Give OpenSSL the other side's public key.
+    if (EVP_PKEY_derive_set_peer(context, peer_key) <= 0) {
+        EVP_PKEY_CTX_free(context);
+        EVP_PKEY_free(peer_key);
+        return {};
+    }
+
+    // First ask OpenSSL how large the shared secret will be.
+    size_t secret_length = 0;
+
+    if (EVP_PKEY_derive(
+            context,
+            nullptr,
+            &secret_length
+        ) <= 0) {
+        EVP_PKEY_CTX_free(context);
+        EVP_PKEY_free(peer_key);
+        return {};
+    }
+
+    // Allocate space for the shared secret.
+    std::vector<uint8_t> shared_secret(secret_length);
+
+    // Actually derive the shared secret.
+    if (EVP_PKEY_derive(
+            context,
+            shared_secret.data(),
+            &secret_length
+        ) <= 0) {
+        EVP_PKEY_CTX_free(context);
+        EVP_PKEY_free(peer_key);
+        return {};
+    }
+
+    shared_secret.resize(secret_length);
+
+    EVP_PKEY_CTX_free(context);
+    EVP_PKEY_free(peer_key);
+
+    return shared_secret;
+}
