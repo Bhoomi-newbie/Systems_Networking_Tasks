@@ -35,3 +35,28 @@ recv() <---------------------- send()
    |                              |
 close()                       closesocket()
 
+
+
+## Level 2 - Diffie-Hellman Key Exchange
+
+### Implemented
+
+- X25519 key pair generation
+- Public key extraction
+- Public key exchange using the custom framing protocol
+- Shared secret generation using X25519
+
+### Architecture
+
+```text
+Client                              Server
+
+Generate key pair                  Generate key pair
+      |                                  |
+      |---- Public Key ----------------->|
+      |                                  |
+      |<--- Public Key ------------------|
+      |                                  |
+Compute shared secret              Compute shared secret
+      |                                  |
+      └──────── Same shared secret ──────┘
