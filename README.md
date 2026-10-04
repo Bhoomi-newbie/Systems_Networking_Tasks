@@ -34,7 +34,7 @@ send() ----------------------> recv()
 recv() <---------------------- send()
    |                              |
 close()                       closesocket()
-
+```
 
 
 ## Level 2 - Diffie-Hellman Key Exchange
