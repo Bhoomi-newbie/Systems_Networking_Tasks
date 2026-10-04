@@ -1,0 +1,5 @@
+D:/Systems_Networking_Tasks/build/CMakeFiles/socket_utils.dir
+D:/Systems_Networking_Tasks/build/CMakeFiles/server.dir
+D:/Systems_Networking_Tasks/build/CMakeFiles/client.dir
+D:/Systems_Networking_Tasks/build/CMakeFiles/ALL_BUILD.dir
+D:/Systems_Networking_Tasks/build/CMakeFiles/ZERO_CHECK.dir

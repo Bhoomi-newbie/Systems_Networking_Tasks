@@ -1,0 +1,10 @@
+^D:\SYSTEMS_NETWORKING_TASKS\BUILD\CMAKEFILES\2A70952ECDBC79D3543F713329482A76\GENERATE.STAMP.RULE
+setlocal
+C:\cmake\cmake-4.3.0-windows-x86_64\bin\cmake.exe -SD:/Systems_Networking_Tasks -BD:/Systems_Networking_Tasks/build --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file D:/Systems_Networking_Tasks/build/NetworkingChat.slnx
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
