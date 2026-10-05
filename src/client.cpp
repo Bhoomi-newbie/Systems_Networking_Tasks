@@ -8,6 +8,7 @@
 #include "socket_utils.h"
 #include "ecdh.h"
 #include "hmac.h"
+#include "crypto.h"
 #pragma comment(lib, "Ws2_32.lib")
 
 constexpr int PORT = 8080;
@@ -251,26 +252,168 @@ std::cout << "Handshake confirmation successful!\n";
 EVP_PKEY_free(keypair);
 
     
-send_frame(
-    clientSocket,
-    1,
-    "Hello from client!"
+std::string message_to_send =
+    "Hello from client!";
+
+// Encrypt the message using AES-256-CBC.
+// The function also generates a fresh random IV
+// and calculates an HMAC-SHA256 over IV + ciphertext.
+EncryptedMessage encrypted =
+    encrypt_message(
+        keys.encryption_key,
+        keys.mac_key,
+        message_to_send
+    );
+
+if (encrypted.iv.empty() ||
+    encrypted.ciphertext.empty() ||
+    encrypted.mac.empty()) {
+
+    std::cerr << "Encryption failed.\n";
+
+    closesocket(clientSocket);
+    cleanup_winsock();
+
+    return 1;
+}
+
+// Construct the payload:
+//
+// [ IV ][ Ciphertext ][ HMAC ]
+//
+// The IV is not secret, so it can be sent along
+// with the encrypted message.
+std::string payload;
+
+payload.append(
+    reinterpret_cast<const char*>(
+        encrypted.iv.data()
+    ),
+    encrypted.iv.size()
 );
+
+payload.append(
+    reinterpret_cast<const char*>(
+        encrypted.ciphertext.data()
+    ),
+    encrypted.ciphertext.size()
+);
+
+payload.append(
+    reinterpret_cast<const char*>(
+        encrypted.mac.data()
+    ),
+    encrypted.mac.size()
+);
+
+// Send the encrypted message using our existing
+// application-layer framing:
+// [ Type ][ Length ][ Payload ]
+if (!send_frame(
+        clientSocket,
+        1,
+        payload
+    )) {
+
+    std::cerr << "Failed to send encrypted message.\n";
+
+    closesocket(clientSocket);
+    cleanup_winsock();
+
+    return 1;
+}
+
+std::cout << "Encrypted message sent.\n";
 
 // Receive a framed response from the server.
 uint8_t type;
 std::string message;
 
-if (recv_frame(clientSocket, type, message)) {
+if (!recv_frame(
+        clientSocket,
+        type,
+        message
+    )) {
 
-    std::cout << "Received frame:\n";
-    std::cout << "Type: " << static_cast<int>(type) << '\n';
-    std::cout << "Length: " << message.size() << '\n';
-    std::cout << "Payload: " << message << '\n';
+    std::cerr << "Failed to receive message.\n";
+
+    closesocket(clientSocket);
+    cleanup_winsock();
+
+    return 1;
 }
-else {
-    print_socket_error("Failed to receive frame.");
+
+// Type 1 represents a normal chat message.
+if (type != 1) {
+
+    std::cerr << "Unexpected message type.\n";
+
+    closesocket(clientSocket);
+    cleanup_winsock();
+
+    return 1;
 }
+
+// The payload must contain at least:
+// 16 bytes IV + 32 bytes HMAC.
+// The ciphertext itself can be larger.
+if (message.size() < 48) {
+
+    std::cerr << "Invalid encrypted message.\n";
+
+    closesocket(clientSocket);
+    cleanup_winsock();
+
+    return 1;
+}
+
+EncryptedMessage encrypted_response;
+
+// Extract the first 16 bytes as the IV.
+encrypted_response.iv.assign(
+    message.begin(),
+    message.begin() + 16
+);
+
+// Extract the last 32 bytes as the HMAC.
+encrypted_response.mac.assign(
+    message.end() - 32,
+    message.end()
+);
+
+// Everything between the IV and HMAC is ciphertext.
+encrypted_response.ciphertext.assign(
+    message.begin() + 16,
+    message.end() - 32
+);
+
+std::string decrypted_message;
+
+// decrypt_message() first verifies the HMAC.
+// Only if the HMAC is valid does it decrypt the message.
+if (!decrypt_message(
+        keys.encryption_key,
+        keys.mac_key,
+        encrypted_response,
+        decrypted_message
+    )) {
+
+    std::cerr << "Message authentication failed.\n";
+    std::cerr << "Message may have been tampered with.\n";
+    std::cerr << "Aborting connection.\n";
+
+    closesocket(clientSocket);
+    cleanup_winsock();
+
+    return 1;
+}
+
+std::cout << "Received: "
+          << decrypted_message
+          << '\n';
+// else {
+//     print_socket_error("Failed to receive frame.");
+// }
     // Close the connection.
     closesocket(clientSocket);
     // Clean up Winsock.

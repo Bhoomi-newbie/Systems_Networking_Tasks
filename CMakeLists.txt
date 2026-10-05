@@ -22,6 +22,7 @@ add_library(socket_utils
     src/ecdh.cpp
     src/kdf.cpp
     src/hmac.cpp
+    src/crypto.cpp
 )
 
 target_include_directories(socket_utils

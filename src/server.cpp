@@ -8,6 +8,7 @@
 #include "socket_utils.h"
 #include "ecdh.h"
 #include "hmac.h"
+#include "crypto.h"
 #pragma comment(lib, "Ws2_32.lib")  //link winsock library
 
 constexpr int PORT = 8080;
@@ -269,23 +270,166 @@ EVP_PKEY_free(keypair);
 uint8_t type;
 std::string message;
 
-if (recv_frame(clientSocket, type, message)) {
+if (!recv_frame(
+        clientSocket,
+        type,
+        message
+    )) {
 
-    std::cout << "Received frame:\n";
-    std::cout << "Type: " << static_cast<int>(type) << '\n';
-    std::cout << "Length: " << message.size() << '\n';
-    std::cout << "Payload: " << message << '\n';
+    std::cerr << "Failed to receive message.\n";
 
-    // Send a framed response back to the client.
-    send_frame(
+    closesocket(clientSocket);
+    closesocket(serverSocket);
+    cleanup_winsock();
+
+    return 1;
+}
+
+// Type 1 represents a normal chat message.
+if (type != 1) {
+
+    std::cerr << "Unexpected message type.\n";
+
+    closesocket(clientSocket);
+    closesocket(serverSocket);
+    cleanup_winsock();
+
+    return 1;
+}
+
+// The payload must contain:
+// 16 bytes IV + ciphertext + 32 bytes HMAC.
+if (message.size() < 48) {
+
+    std::cerr << "Invalid encrypted message.\n";
+
+    closesocket(clientSocket);
+    closesocket(serverSocket);
+    cleanup_winsock();
+
+    return 1;
+}
+
+EncryptedMessage encrypted_message;
+
+// Extract the 16-byte IV from the beginning.
+encrypted_message.iv.assign(
+    message.begin(),
+    message.begin() + 16
+);
+
+// Extract the 32-byte HMAC from the end.
+encrypted_message.mac.assign(
+    message.end() - 32,
+    message.end()
+);
+
+// The remaining bytes are the ciphertext.
+encrypted_message.ciphertext.assign(
+    message.begin() + 16,
+    message.end() - 32
+);
+
+std::string decrypted_message;
+
+// Verify the HMAC first.
+// If verification succeeds, decrypt the ciphertext.
+if (!decrypt_message(
+        keys.encryption_key,
+        keys.mac_key,
+        encrypted_message,
+        decrypted_message
+    )) {
+
+    std::cerr << "Message authentication failed.\n";
+    std::cerr << "Message may have been tampered with.\n";
+    std::cerr << "Aborting connection.\n";
+
+    closesocket(clientSocket);
+    closesocket(serverSocket);
+    cleanup_winsock();
+
+    return 1;
+}
+
+std::cout << "Received: "
+          << decrypted_message
+          << '\n';
+
+
+// --------------------------------------------------
+// Level 5: Encrypt and authenticate server response.
+// --------------------------------------------------
+
+std::string response =
+    "Hello from server!";
+
+// Encrypt the response using AES-256-CBC.
+// A fresh random IV is generated for this message.
+// An HMAC is then calculated over IV + ciphertext.
+EncryptedMessage encrypted_response =
+    encrypt_message(
+        keys.encryption_key,
+        keys.mac_key,
+        response
+    );
+
+if (encrypted_response.iv.empty() ||
+    encrypted_response.ciphertext.empty() ||
+    encrypted_response.mac.empty()) {
+
+    std::cerr << "Encryption failed.\n";
+
+    closesocket(clientSocket);
+    closesocket(serverSocket);
+    cleanup_winsock();
+
+    return 1;
+}
+
+// Construct the encrypted payload:
+//
+// [ IV ][ Ciphertext ][ HMAC ]
+std::string response_payload;
+
+response_payload.append(
+    reinterpret_cast<const char*>(
+        encrypted_response.iv.data()
+    ),
+    encrypted_response.iv.size()
+);
+
+response_payload.append(
+    reinterpret_cast<const char*>(
+        encrypted_response.ciphertext.data()
+    ),
+    encrypted_response.ciphertext.size()
+);
+
+response_payload.append(
+    reinterpret_cast<const char*>(
+        encrypted_response.mac.data()
+    ),
+    encrypted_response.mac.size()
+);
+
+// Send the encrypted response using our framing layer.
+if (!send_frame(
         clientSocket,
         1,
-        "Hello from server!"
-    );
+        response_payload
+    )) {
+
+    std::cerr << "Failed to send encrypted response.\n";
+
+    closesocket(clientSocket);
+    closesocket(serverSocket);
+    cleanup_winsock();
+
+    return 1;
 }
-else {
-    print_socket_error("Failed to receive frame.");
-}
+
+std::cout << "Encrypted response sent.\n";
 
     // Close the connected client socket.
     closesocket(clientSocket);
