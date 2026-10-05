@@ -39,6 +39,9 @@ close()                       closesocket()
 
 ## Level 2 - Diffie-Hellman Key Exchange
 
+### Understanding
+DH and ECDH
+
 ### Implemented
 
 - X25519 key pair generation
@@ -71,3 +74,5 @@ The sender encrypts the plaintext using the encryption key, producing ciphertext
 The receiver uses its MAC key to calculate a MAC tag over the received ciphertext and compares it with the received tag. If they match, the ciphertext has not been modified by an attacker who doesn't know the MAC key. The receiver can then decrypt the ciphertext using the encryption key
 
 ### HKDF - HMAC-based Key Derivation Function
+
+HKDF is a two-stage key derivation construction. It first extracts a pseudorandom key from the shared secret, then expands that key into the required key material

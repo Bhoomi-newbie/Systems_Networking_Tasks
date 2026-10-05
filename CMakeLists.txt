@@ -21,6 +21,7 @@ add_library(socket_utils
     src/socket_utils.cpp
     src/ecdh.cpp
     src/kdf.cpp
+    src/hmac.cpp
 )
 
 target_include_directories(socket_utils
