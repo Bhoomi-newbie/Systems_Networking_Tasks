@@ -88,3 +88,8 @@ After encryption, HMAC-SHA256 is calculated over the IV and ciphertext using the
    IV || ciphertext || MAC
 4. Verification - The receiver independently calculates the HMAC and compares it with the received MAC before decrypting.
 5. Decryption - If the MAC matches, AES-256-CBC is used to recover the original plaintext.
+
+
+![Final Output(SERVER)](images/L5_server.png)
+
+![Final Output(CLIENT)](images/L5_client.png)
