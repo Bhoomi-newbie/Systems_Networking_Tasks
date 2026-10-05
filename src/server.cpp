@@ -4,7 +4,7 @@
 #include <string>
 #include <winsock2.h>
 #include <ws2tcpip.h>  // TCP/IP functionality
-
+#include "kdf.h"
 #include "socket_utils.h"
 #include "ecdh.h"
 #pragma comment(lib, "Ws2_32.lib")  //link winsock library
@@ -143,6 +143,28 @@ if (shared_secret.empty()) {
 std::cout << "ECDH key exchange successful!\n";
 std::cout << "Shared secret size: "
           << shared_secret.size()
+          << " bytes\n";
+
+DerivedKeys keys = derive_keys(shared_secret);
+
+if (keys.encryption_key.empty() ||
+    keys.mac_key.empty()) {
+
+    std::cerr << "Failed to derive keys\n";
+
+    EVP_PKEY_free(keypair);
+    closesocket(clientSocket);
+    return 1;
+}
+
+std::cout << "HKDF key derivation successful!\n";
+
+std::cout << "Encryption key size: "
+          << keys.encryption_key.size()
+          << " bytes\n";
+
+std::cout << "MAC key size: "
+          << keys.mac_key.size()
           << " bytes\n";
 
 EVP_PKEY_free(keypair);

@@ -26,6 +26,7 @@ EVP_PKEY* generate_x25519_keypair() {
     return keypair;
 }
 
+//extracting public key in raw bytes to transfer over tcp
 std::vector<uint8_t> get_public_key(EVP_PKEY* keypair) {
 
     size_t public_key_length = 0;
@@ -119,7 +120,6 @@ std::vector<uint8_t> compute_shared_secret(
     }
 
     shared_secret.resize(secret_length);
-
     EVP_PKEY_CTX_free(context);
     EVP_PKEY_free(peer_key);
 

@@ -60,3 +60,14 @@ Generate key pair                  Generate key pair
 Compute shared secret              Compute shared secret
       |                                  |
       └──────── Same shared secret ──────┘
+```
+
+## Level 3
+
+### Understanding
+
+A KDF takes the shared secret established through DH/ECDH and derives separate keys for different purposes, such as an encryption key and a MAC key. Since both sender and receiver have the same shared secret and use the same KDF specified by the protocol, they independently derive the same keys.
+The sender encrypts the plaintext using the encryption key, producing ciphertext. It then uses the MAC key and the ciphertext with a MAC algorithm to generate a MAC tag. The sender transmits the ciphertext and MAC tag.
+The receiver uses its MAC key to calculate a MAC tag over the received ciphertext and compares it with the received tag. If they match, the ciphertext has not been modified by an attacker who doesn't know the MAC key. The receiver can then decrypt the ciphertext using the encryption key
+
+### HKDF - HMAC-based Key Derivation Function
