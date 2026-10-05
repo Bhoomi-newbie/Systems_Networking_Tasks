@@ -94,4 +94,4 @@ After encryption, HMAC-SHA256 is calculated over the IV and ciphertext using the
 
 ![Final Output(CLIENT)](images/L5_client.png)
 
-<img src="images/L5_client.png" width="700">
+<img src="images/L5_client.png" width="400">
