@@ -7,6 +7,7 @@
 #include "kdf.h"
 #include "socket_utils.h"
 #include "ecdh.h"
+#include "hmac.h"
 #pragma comment(lib, "Ws2_32.lib")  //link winsock library
 
 constexpr int PORT = 8080;
@@ -167,44 +168,104 @@ std::cout << "MAC key size: "
           << keys.mac_key.size()
           << " bytes\n";
 
+uint8_t confirmation_type;
+std::string confirmation_data;
+
+if (!recv_frame(
+        clientSocket,
+        confirmation_type,
+        confirmation_data
+    )) {
+
+    std::cerr << "Failed to receive handshake confirmation.\n";
+
+    EVP_PKEY_free(keypair);
+    closesocket(clientSocket);
+    cleanup_winsock();
+
+    return 1;
+}
+
+if (confirmation_type != 3) {
+    std::cerr << "Unexpected handshake confirmation type.\n";
+
+    EVP_PKEY_free(keypair);
+    closesocket(clientSocket);
+    cleanup_winsock();
+
+    return 1;
+}
+if (confirmation_data.size() != 32) {
+    std::cerr << "Invalid handshake confirmation length.\n";
+
+    EVP_PKEY_free(keypair);
+    closesocket(clientSocket);
+    cleanup_winsock();
+
+    return 1;
+}
+std::vector<uint8_t> received_tag(
+    confirmation_data.begin(),
+    confirmation_data.end()
+);
+
+std::vector<uint8_t> transcript;
+transcript.insert(
+    transcript.end(),
+    peer_public_key.begin(),
+    peer_public_key.end()
+);
+transcript.insert(
+    transcript.end(),
+    public_key.begin(),
+    public_key.end()
+);
+
+std::vector<uint8_t> expected_tag =
+    hmac_sha256(
+        keys.mac_key,
+        transcript
+    );
+if (!verify_hmac(
+        expected_tag,
+        received_tag
+    )) {
+
+    std::cerr << "Handshake confirmation failed.\n";
+    std::cerr << "Aborting connection.\n";
+
+    EVP_PKEY_free(keypair);
+    closesocket(clientSocket);
+    cleanup_winsock();
+
+    return 1;
+}
+std::cout << "Client handshake confirmation verified.\n";
+
+std::string server_confirmation_data(
+    reinterpret_cast<const char*>(
+        expected_tag.data()
+    ),
+    expected_tag.size()
+);
+
+if (!send_frame(
+        clientSocket,
+        3,
+        server_confirmation_data
+    )) {
+
+    std::cerr << "Failed to send handshake confirmation.\n";
+
+    EVP_PKEY_free(keypair);
+    closesocket(clientSocket);
+    cleanup_winsock();
+
+    return 1;
+}
+std::cout << "Handshake confirmation successful!\n";
 EVP_PKEY_free(keypair);
 
-    // Receive a message from the client.
-    // char buffer[BUFFER_SIZE];
-    // int bytesReceived = recv(
-    //     clientSocket,
-    //     buffer,
-    //     BUFFER_SIZE - 1,
-    //     0
-    // );
-
-    // if (bytesReceived > 0) {
-
-    //     // Add null terminator so we can print the received data as a string.
-    //     buffer[bytesReceived] = '\0';
-
-    //     std::cout << "Client: "
-    //               << buffer
-    //               << '\n';
-
-    //     // Send a response back to the client.
-    //     const char* response = "Hello from server!";
-
-    //     send(
-    //         clientSocket,
-    //         response,
-    //         static_cast<int>(std::strlen(response)),
-    //         0
-    //     );
-    // }
-    // else if (bytesReceived == 0) {
-    //     std::cout << "Client closed the connection.\n";
-    // }
-    // else {
-    //     print_socket_error("Receive failed.");
-    // }
-
-    // Receive a framed message from the client.
 uint8_t type;
 std::string message;
 
