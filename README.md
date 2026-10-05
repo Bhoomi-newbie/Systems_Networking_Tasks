@@ -76,8 +76,8 @@ In this level, Handshake confirmation by both parties was implemented by sending
 
 #### Testing with tampered data
 
-<img src="images/Failed Handshake Confirmation(server)" width="400">
-<img src="images/Failed Handshake Confirmation(client)" width="400">
+<img src="images/Failed Handshake Confirmation(server).png" width="400">
+<img src="images/Failed Handshake Confirmation(client).png" width="400">
 
 ## Level 5
 
