@@ -74,6 +74,11 @@ In this level, Handshake confirmation by both parties was implemented by sending
 1. Transcript - ordered concatenation of the client and server X25519 public keys
 2. HMAC SHA-256 - Each side independently computes HMAC(MAC key, transcript) to generate a 32 byte long output
 
+#### Successful Handshake
+
+<img src="images/Screenshot 2026-10-05 221510.png" width="400">
+<img src="images/Screenshot 2026-10-05 221517.png" width="400">
+
 #### Testing with tampered data
 
 <img src="images/Failed Handshake Confirmation(server).png" width="400">
